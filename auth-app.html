@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SorianoAuth – Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #2563eb; --blue-dark: #1e40af; --blue-light: #eff6ff;
+      --blue-mid: #dbeafe; --blue-soft: #93c5fd; --white: #ffffff;
+      --text: #1e3a5f; --muted: #64748b; --error: #ef4444; --success: #10b981;
+    }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--blue-light);
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; position: relative;
+    }
+    body::before, body::after {
+      content: ''; position: fixed; border-radius: 50%;
+      filter: blur(80px); opacity: 0.35;
+      animation: float 8s ease-in-out infinite alternate;
+      pointer-events: none; z-index: 0;
+    }
+    body::before {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #93c5fd, #2563eb);
+      top: -120px; left: -120px;
+    }
+    body::after {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, #bfdbfe, #60a5fa);
+      bottom: -80px; right: -80px; animation-delay: -4s;
+    }
+    @keyframes float {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(40px,30px) scale(1.08); }
+    }
+    .card {
+      position: relative; z-index: 1; width: 400px;
+      background: var(--white); border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(37,99,235,0.18), 0 4px 16px rgba(37,99,235,0.08);
+      overflow: hidden; animation: slideUp 0.6s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    @keyframes slideUp {
+      from { opacity:0; transform: translateY(32px) scale(0.97); }
+      to   { opacity:1; transform: translateY(0) scale(1); }
+    }
+    .card-header {
+      background: linear-gradient(135deg, var(--blue) 0%, #1d4ed8 60%, #1e40af 100%);
+      padding: 36px 32px 28px; position: relative; overflow: hidden;
+    }
+    .card-header::before {
+      content: ''; position: absolute; width: 220px; height: 220px;
+      background: rgba(255,255,255,0.07); border-radius: 50%; top: -60px; right: -40px;
+    }
+    .card-header::after {
+      content: ''; position: absolute; width: 120px; height: 120px;
+      background: rgba(255,255,255,0.05); border-radius: 50%; bottom: -30px; left: 20px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .logo-icon {
+      width: 38px; height: 38px; background: rgba(255,255,255,0.2);
+      border-radius: 10px; display: grid; place-items: center; backdrop-filter: blur(8px);
+    }
+    .logo-icon svg { width: 20px; height: 20px; fill: white; }
+    .logo-text { font-family: 'Sora', sans-serif; font-size: 1.1rem; color: rgba(255,255,255,0.9); letter-spacing: 0.04em; }
+    .card-header h1 {
+      font-family: 'Sora', sans-serif; font-size: 1.7rem; font-weight: 800;
+      color: white; line-height: 1.2; position: relative; z-index: 1;
+    }
+    .card-header p { margin-top: 6px; font-size: 0.88rem; color: rgba(255,255,255,0.72); position: relative; z-index: 1; }
+    .card-body { padding: 32px; }
+    .field { margin-bottom: 20px; }
+    .field label {
+      display: block; font-size: 0.82rem; font-weight: 600; color: var(--text);
+      margin-bottom: 8px; letter-spacing: 0.03em; text-transform: uppercase;
+    }
+    .input-wrap { position: relative; }
+    .input-wrap .field-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      width: 18px; height: 18px; color: var(--blue-soft); pointer-events: none; transition: color 0.2s;
+    }
+    .input-wrap input {
+      width: 100%; padding: 13px 14px 13px 42px;
+      border: 1.5px solid var(--blue-mid); border-radius: 12px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--text);
+      background: var(--blue-light); transition: border 0.2s, box-shadow 0.2s, background 0.2s; outline: none;
+    }
+    .input-wrap input:focus { border-color: var(--blue); background: white; box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
+    .input-wrap:focus-within .field-icon { color: var(--blue); }
+    @keyframes shake {
+      10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(4px)}
+      30%,50%,70%{transform:translateX(-6px)} 40%,60%{transform:translateX(6px)}
+    }
+    .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both !important; border-color: var(--error) !important; box-shadow: 0 0 0 4px rgba(239,68,68,0.12) !important; }
+    .toggle-pass {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      cursor: pointer; background: none; border: none; padding: 0; color: var(--muted); transition: color 0.2s;
+    }
+    .toggle-pass:hover { color: var(--blue); }
+    .btn {
+      width: 100%; padding: 14px; background: var(--blue); color: white; border: none;
+      border-radius: 12px; font-family: 'Sora', sans-serif; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; letter-spacing: 0.03em;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 14px rgba(37,99,235,0.35);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn:hover { background: var(--blue-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,235,0.4); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: transparent; color: var(--blue); box-shadow: none;
+      border: 1.5px solid var(--blue-mid); font-size: 0.88rem; padding: 10px; margin-top: 10px;
+    }
+    .btn-secondary:hover { background: var(--blue-light); box-shadow: none; transform: none; }
+    .alert {
+      padding: 11px 14px; border-radius: 10px; font-size: 0.87rem;
+      margin-bottom: 18px; display: none; align-items: center; gap: 8px;
+    }
+    .alert.error  { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; display: flex; }
+    .alert.success{ background: #f0fdf4; color: #065f46; border: 1px solid #a7f3d0; display: flex; }
+    .otp-wrap { display: flex; gap: 10px; justify-content: center; margin: 8px 0 6px; }
+    .otp-wrap input {
+      width: 50px; height: 58px; text-align: center;
+      font-size: 1.5rem; font-weight: 700; font-family: 'Sora', sans-serif;
+      color: var(--text); border: 2px solid var(--blue-mid); border-radius: 12px;
+      background: var(--blue-light); outline: none;
+      transition: border 0.2s, box-shadow 0.2s, background 0.2s, transform 0.15s;
+    }
+    .otp-wrap input:focus { border-color: var(--blue); background: white; box-shadow: 0 0 0 4px rgba(37,99,235,0.12); transform: scale(1.05); }
+    .otp-wrap input.filled { border-color: var(--blue); background: #eff6ff; }
+    .otp-hint { text-align: center; font-size: 0.83rem; color: var(--muted); margin-bottom: 22px; }
+    .otp-hint span { color: var(--blue); font-weight: 600; }
+    /* QR setup */
+    .qr-box { text-align: center; margin-bottom: 20px; }
+    .qr-box img { width: 180px; height: 180px; border-radius: 12px; border: 2px solid var(--blue-mid); padding: 8px; background: white; margin: 0 auto 12px; display: block; }
+    .qr-box p { font-size: 0.83rem; color: var(--muted); line-height: 1.5; }
+    .qr-box p strong { color: var(--text); }
+    .secret-box {
+      background: var(--blue-light); border: 1px solid var(--blue-mid); border-radius: 10px;
+      padding: 10px 14px; font-size: 0.85rem; color: var(--text); font-family: monospace;
+      letter-spacing: 0.1em; text-align: center; margin-bottom: 16px; word-break: break-all;
+    }
+    .home-avatar {
+      width: 72px; height: 72px; background: linear-gradient(135deg, var(--blue), #1d4ed8);
+      border-radius: 50%; display: grid; place-items: center;
+      margin: 0 auto 16px; box-shadow: 0 8px 24px rgba(37,99,235,0.3);
+    }
+    .home-avatar svg { width: 36px; height: 36px; fill: white; }
+    .home-welcome { text-align: center; margin-bottom: 24px; }
+    .home-welcome h2 { font-family: 'Sora', sans-serif; font-size: 1.1rem; color: var(--muted); font-weight: 400; margin-bottom: 4px; }
+    .home-welcome h1 { font-family: 'Sora', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--blue); }
+    .home-badge {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--blue-light); border: 1px solid var(--blue-mid);
+      border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;
+    }
+    .home-badge svg { width: 20px; height: 20px; color: var(--blue); flex-shrink: 0; }
+    .home-badge p { font-size: 0.88rem; color: var(--muted); }
+    .home-badge p strong { color: var(--text); display: block; font-size: 0.95rem; }
+    .divider { height: 1px; background: var(--blue-mid); margin: 20px 0; }
+    .spinner { width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,0.35); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .page { display: none; }
+    .page.active { display: block; animation: slideUp 0.45s cubic-bezier(0.16,1,0.3,1) both; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <!-- ══ LOGIN PAGE ══ -->
+  <div class="page active" id="page-login">
+    <div class="card-header">
+      <div class="logo">
+        <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg></div>
+        <span class="logo-text">SorianoAuth</span>
+      </div>
+      <h1>Welcome back</h1>
+      <p>Sign in to continue to your account</p>
+    </div>
+    <div class="card-body">
+      <div class="alert" id="login-alert"></div>
+      <div class="field">
+        <label>Gmail Address</label>
+        <div class="input-wrap">
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
+          <input type="email" id="login-email" placeholder="you@gmail.com" autocomplete="email" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="input-wrap">
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" />
+          <button class="toggle-pass" type="button" onclick="togglePass()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="btn" id="login-btn" onclick="handleLogin()"><span>Sign In</span></button>
+      <p style="text-align:center;font-size:0.8rem;color:var(--muted);margin-top:18px;">
+        A one-time passcode will be sent to your Google Authenticator
+      </p>
+    </div>
+  </div>
+
+  <!-- ══ QR SETUP PAGE ══ -->
+  <div class="page" id="page-setup">
+    <div class="card-header">
+      <div class="logo">
+        <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg></div>
+        <span class="logo-text">SorianoAuth</span>
+      </div>
+      <h1>Setup Authenticator</h1>
+      <p>Scan this QR code once to enroll</p>
+    </div>
+    <div class="card-body">
+      <div class="alert" id="setup-alert"></div>
+      <div class="qr-box">
+        <img id="qr-image" src="" alt="QR Code" />
+        <p>Open <strong>Google Authenticator</strong> → tap <strong>+</strong> → <strong>Scan QR code</strong></p>
+      </div>
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:6px;text-align:center;">Or enter this key manually:</p>
+      <div class="secret-box" id="totp-secret">Loading...</div>
+      <button class="btn" onclick="goToVerify()"><span>I've scanned it → Enter Code</span></button>
+      <button class="btn btn-secondary" onclick="goBack()">← Back to Login</button>
+    </div>
+  </div>
+
+  <!-- ══ OTP PAGE ══ -->
+  <div class="page" id="page-otp">
+    <div class="card-header">
+      <div class="logo">
+        <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg></div>
+        <span class="logo-text">SorianoAuth</span>
+      </div>
+      <h1>Verify Identity</h1>
+      <p>Enter the 6-digit code we sent you</p>
+    </div>
+    <div class="card-body">
+      <div class="alert" id="otp-alert"></div>
+      <p class="otp-hint">Enter the code from <span>Google Authenticator</span></p>
+      <div class="otp-wrap">
+        <input class="otp-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input class="otp-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input class="otp-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input class="otp-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input class="otp-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input class="otp-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+      </div>
+      <p style="text-align:center;font-size:0.8rem;color:var(--muted);margin:10px 0 18px;">Code refreshes every 30 seconds in the app</p>
+      <button class="btn" id="otp-btn" onclick="handleOTP()"><span>Verify Code</span></button>
+      <button class="btn btn-secondary" onclick="goBack()">← Back to Login</button>
+    </div>
+  </div>
+
+  <!-- ══ HOME PAGE ══ -->
+  <div class="page" id="page-home">
+    <div class="card-header">
+      <div class="logo">
+        <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg></div>
+        <span class="logo-text">SorianoAuth</span>
+      </div>
+      <h1>Dashboard</h1>
+      <p>You're securely authenticated</p>
+    </div>
+    <div class="card-body">
+      <div class="home-avatar">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div class="home-welcome">
+        <h2>Welcome back,</h2>
+        <h1 id="welcome-name">user@gmail.com</h1>
+      </div>
+      <div class="home-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
+        <p><strong id="home-email">—</strong>Verified Gmail account</p>
+      </div>
+      <div class="home-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <p><strong>Authentication Method</strong>Google Authenticator (TOTP)</p>
+      </div>
+      <div class="divider"></div>
+      <button class="btn" onclick="handleLogout()">Sign Out</button>
+    </div>
+  </div>
+
+</div>
+<script>
+  // ══════════════════════════════════════════
+  //  SUPABASE CONFIG
+  // ══════════════════════════════════════════
+  const SUPABASE_URL      = "https://hxztbwzerhlvpalibouk.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_tbHuhhFHQumYlyvsbl2Zrg_ayXQvbSu";
+  const { createClient } = supabase;
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ══════════════════════════════════════════
+  //  HARDCODED CREDENTIALS
+  //  Password here must MATCH what you set in
+  //  Supabase → Auth → Users → Edit user
+  // ══════════════════════════════════════════
+  const VALID_CREDENTIALS = [
+    { email: "noxinous@gmail.com",            password: "admin123" },
+    { email: "vincentonairos.2005@gmail.com", password: "admin123" },
+  ];
+
+  let currentFactorId  = "";
+  let currentChallengeId = "";
+
+  // ── Navigation ──
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + id).classList.add('active');
+  }
+  function goBack() {
+    clearAlert('otp'); clearAlert('setup'); clearAlert('login');
+    showPage('login');
+  }
+  function goToVerify() {
+    clearAlert('otp');
+    showPage('otp');
+    setTimeout(() => document.querySelector('.otp-input').focus(), 100);
+  }
+
+  // ── Alerts ──
+  function showAlert(id, msg, type = 'error') {
+    const el = document.getElementById(id + '-alert');
+    if (!el) return;
+    el.className = 'alert ' + type;
+    const icon = type === 'error'
+      ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
+      : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`;
+    el.innerHTML = icon + msg;
+  }
+  function clearAlert(id) {
+    const el = document.getElementById(id + '-alert');
+    if (el) { el.className = 'alert'; el.textContent = ''; }
+  }
+
+  // ── Spinner ──
+  function setLoading(btnId, loading, label = 'Sign In') {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.innerHTML = loading ? `<div class="spinner"></div>` : `<span>${label}</span>`;
+  }
+
+  // ── Password toggle ──
+  function togglePass() {
+    const inp = document.getElementById('login-password');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+
+  // ── Shake ──
+  function shakeFields() {
+    ['login-email','login-password'].forEach(id => {
+      const el = document.getElementById(id);
+      el.classList.remove('shake'); void el.offsetWidth;
+      el.classList.add('shake');
+      setTimeout(() => el.classList.remove('shake'), 500);
+    });
+  }
+
+  // ══════════════════════════════════════════
+  //  LOGIN
+  //  Uses signInWithPassword — no email OTP,
+  //  no rate limit issues, instant response.
+  // ══════════════════════════════════════════
+  async function handleLogin() {
+    clearAlert('login');
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+
+    if (!email || !email.includes('@')) { showAlert('login', 'Please enter a valid email address.'); return; }
+    if (!password)                       { showAlert('login', 'Please enter your password.'); return; }
+
+    // Step 1: Check hardcoded list
+    const isValid = VALID_CREDENTIALS.some(
+      c => c.email.toLowerCase() === email.toLowerCase() && c.password === password
+    );
+    if (!isValid) {
+      shakeFields();
+      showAlert('login', 'Invalid email or password. Please try again.');
+      return;
+    }
+
+    // Step 2: Sign in with Supabase password auth
+    setLoading('login-btn', true, 'Sign In');
+    try {
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        // Common errors and friendly messages
+        if (error.message.includes('Invalid login credentials')) {
+          showAlert('login', 'Supabase password not set yet. See setup instructions below.');
+        } else if (error.message.includes('Email not confirmed')) {
+          showAlert('login', 'Please confirm your email first — check your inbox for a confirmation link.');
+        } else {
+          showAlert('login', error.message);
+        }
+        return;
+      }
+
+      // Step 3: Check TOTP enrollment
+      const { data: mfaData } = await client.auth.mfa.listFactors();
+      const verified = mfaData?.totp?.find(f => f.status === 'verified');
+
+      if (verified) {
+        // Already enrolled → go straight to verify
+        currentFactorId = verified.id;
+        const { data: challengeData, error: challengeErr } = await client.auth.mfa.challenge({ factorId: currentFactorId });
+        if (challengeErr) { showAlert('login', 'MFA challenge failed: ' + challengeErr.message); return; }
+        currentChallengeId = challengeData.id;
+        showPage('otp');
+        setTimeout(() => document.querySelector('.otp-input').focus(), 100);
+      } else {
+        // Not enrolled → show QR setup
+        const { data: enrollData, error: enrollErr } = await client.auth.mfa.enroll({
+          factorType: 'totp',
+          friendlyName: 'Google Authenticator'
+        });
+        if (enrollErr) { showAlert('login', 'Enrollment failed: ' + enrollErr.message); return; }
+        currentFactorId = enrollData.id;
+        document.getElementById('qr-image').src         = enrollData.totp.qr_code;
+        document.getElementById('totp-secret').textContent = enrollData.totp.secret;
+        showPage('setup');
+      }
+
+    } catch(e) {
+      showAlert('login', 'Connection error. Make sure you are on localhost or a live server.');
+    } finally {
+      setLoading('login-btn', false, 'Sign In');
+    }
+  }
+
+  // ══════════════════════════════════════════
+  //  OTP INPUTS
+  // ══════════════════════════════════════════
+  const otpInputs = document.querySelectorAll('.otp-input');
+  otpInputs.forEach((inp, i) => {
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/\D/g,'').slice(-1);
+      inp.classList.toggle('filled', inp.value !== '');
+      if (inp.value && i < otpInputs.length - 1) otpInputs[i+1].focus();
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !inp.value && i > 0) {
+        otpInputs[i-1].value = ''; otpInputs[i-1].classList.remove('filled'); otpInputs[i-1].focus();
+      }
+      if (e.key === 'Enter') handleOTP();
+    });
+    inp.addEventListener('paste', e => {
+      e.preventDefault();
+      const text = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+      [...text].forEach((ch,j) => { if(otpInputs[j]){otpInputs[j].value=ch; otpInputs[j].classList.add('filled');} });
+      if (otpInputs[text.length]) otpInputs[text.length].focus();
+    });
+  });
+
+  async function handleOTP() {
+    clearAlert('otp');
+    const code = [...otpInputs].map(i => i.value).join('');
+    if (code.length < 6) { showAlert('otp', 'Please enter all 6 digits.'); return; }
+
+    setLoading('otp-btn', true, 'Verify Code');
+    try {
+      // If coming from QR setup, issue a fresh challenge first
+      if (!currentChallengeId) {
+        const { data: cd, error: ce } = await client.auth.mfa.challenge({ factorId: currentFactorId });
+        if (ce) { showAlert('otp', 'Challenge error: ' + ce.message); return; }
+        currentChallengeId = cd.id;
+      }
+
+      const { error } = await client.auth.mfa.verify({
+        factorId:    currentFactorId,
+        challengeId: currentChallengeId,
+        code
+      });
+
+      if (error) {
+        showAlert('otp', 'Invalid code. Codes expire every 30 seconds — try again with the current code.');
+        otpInputs.forEach(i => { i.value=''; i.classList.remove('filled'); });
+        otpInputs[0].focus();
+        currentChallengeId = ''; // reset so a fresh challenge is issued next attempt
+      } else {
+        const { data: { user } } = await client.auth.getUser();
+        document.getElementById('welcome-name').textContent = user.email;
+        document.getElementById('home-email').textContent   = user.email;
+        showPage('home');
+      }
+    } catch(e) {
+      showAlert('otp', 'Connection error. Please try again.');
+    } finally {
+      setLoading('otp-btn', false, 'Verify Code');
+    }
+  }
+
+  // ══════════════════════════════════════════
+  //  LOGOUT
+  // ══════════════════════════════════════════
+  async function handleLogout() {
+    await client.auth.signOut();
+    currentFactorId = ''; currentChallengeId = '';
+    otpInputs.forEach(i => { i.value=''; i.classList.remove('filled'); });
+    clearAlert('login'); clearAlert('otp'); clearAlert('setup');
+    showPage('login');
+  }
+
+  // Restore session on load
+  (async () => {
+    const { data: { user } } = await client.auth.getUser();
+    if (user) {
+      document.getElementById('welcome-name').textContent = user.email;
+      document.getElementById('home-email').textContent   = user.email;
+      showPage('home');
+    }
+  })();
+
+  document.getElementById('login-email').addEventListener('keydown',    e => { if(e.key==='Enter') document.getElementById('login-password').focus(); });
+  document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') handleLogin(); });
+</script>
+</body>
+</html>
